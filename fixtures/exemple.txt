@@ -1,0 +1,1 @@
+Il était une fois un petit test d’import TXT. La lecture rapide affiche chaque mot au centre, avec la lettre optimale en rouge.

@@ -1,0 +1,1839 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#f4efe4" />
+  <meta name="color-scheme" content="light" />
+  <title>Lecture rapide — RSVP + ORP</title>
+  <script src="vendor/jszip.min.js"></script>
+  <style>
+    :root {
+      --cream: #f4efe4;
+      --cream-deep: #ebe4d4;
+      --paper: #faf6ec;
+      --charcoal: #1f1c18;
+      --ink: #2c2822;
+      --line: #3d3830;
+      --tick: #4a453c;
+      --orp: #a3161f;
+      --muted: #6a6358;
+      --muted-2: #8a8274;
+      --panel: #ebe5d6;
+      --panel-2: #e3dccb;
+      --border: #d0c8b4;
+      --border-strong: #bdb49e;
+      --shadow: 0 10px 28px rgba(40, 32, 18, 0.07);
+      --radius: 16px;
+      --safe-b: env(safe-area-inset-bottom, 0px);
+      --safe-t: env(safe-area-inset-top, 0px);
+      --word-size: 3rem;
+      --ui: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, "Times New Roman", serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      min-height: 100%;
+      background: var(--cream);
+      color: var(--ink);
+      font-family: var(--serif);
+      -webkit-text-size-adjust: 100%;
+      text-rendering: optimizeLegibility;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      min-height: 100dvh;
+      padding-top: var(--safe-t);
+      padding-bottom: var(--safe-b);
+    }
+
+    button, input, textarea, summary {
+      font: inherit;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.9rem 1.25rem 0.35rem;
+      max-width: 880px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .brand {
+      font-family: var(--ui);
+      font-size: 0.82rem;
+      letter-spacing: 0.01em;
+      color: var(--muted);
+      line-height: 1.2;
+      min-width: 0;
+    }
+
+    .brand strong {
+      display: block;
+      color: var(--charcoal);
+      font-family: var(--serif);
+      font-size: 1.05rem;
+      font-weight: 600;
+      letter-spacing: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: min(58vw, 420px);
+    }
+
+    .brand .book-meta {
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: min(58vw, 420px);
+    }
+
+    .top-actions {
+      display: flex;
+      gap: 0.4rem;
+      flex-shrink: 0;
+    }
+
+    .header-prompt {
+      text-align: center;
+      font-size: clamp(0.95rem, 2.4vw, 1.1rem);
+      color: var(--muted);
+      margin: 0.35rem auto 0;
+      max-width: 640px;
+      padding: 0 1.25rem;
+      min-height: 1.45em;
+      font-style: italic;
+      transition: opacity 160ms ease;
+    }
+
+    body.is-playing .header-prompt { opacity: 0.85; }
+
+    .reader-stage {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: stretch;
+      width: 100%;
+      max-width: 880px;
+      margin: 0 auto;
+      padding: clamp(1.25rem, 4vh, 2.75rem) 0 clamp(0.75rem, 2vh, 1.25rem);
+      user-select: none;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .reader-stage:focus-visible {
+      outline: 2px solid rgba(163, 22, 31, 0.45);
+      outline-offset: 4px;
+      border-radius: 4px;
+    }
+
+    .band {
+      position: relative;
+      width: 100%;
+      min-height: calc(var(--word-size) * 1.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-top: 1.5px solid var(--line);
+      border-bottom: 1.5px solid var(--line);
+      background:
+        linear-gradient(to bottom, rgba(255,255,255,0.28), transparent 42%),
+        linear-gradient(to top, rgba(55, 42, 20, 0.035), transparent 42%),
+        var(--cream);
+    }
+
+    .tick {
+      position: absolute;
+      left: 50%;
+      width: 1.5px;
+      height: clamp(10px, 1.6vw, 14px);
+      background: var(--tick);
+      transform: translateX(-50%);
+      pointer-events: none;
+      z-index: 2;
+      border-radius: 1px;
+    }
+    .tick.top { top: 0; }
+    .tick.bottom { bottom: 0; }
+
+    .word-slot {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-height: calc(var(--word-size) * 1.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      padding: 0 0.5rem;
+    }
+
+    .word {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      white-space: nowrap;
+      font-size: var(--word-size);
+      line-height: 1;
+      letter-spacing: 0.005em;
+      font-weight: 400;
+      color: var(--charcoal);
+      transition: none;
+    }
+
+    .word .before,
+    .word .after { color: var(--charcoal); }
+    .word .orp {
+      color: var(--orp);
+      font-weight: 500;
+    }
+
+    .speed {
+      text-align: center;
+      margin-top: 1rem;
+      font-style: italic;
+      font-size: clamp(0.98rem, 2.2vw, 1.12rem);
+      color: var(--ink);
+      letter-spacing: 0.01em;
+    }
+
+    .progress-wrap {
+      max-width: 880px;
+      width: 100%;
+      margin: 0.35rem auto 0;
+      padding: 0 1.25rem;
+    }
+
+    .progress {
+      height: 2px;
+      background: var(--border);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .progress > span {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: var(--orp);
+      transition: width 70ms linear;
+    }
+
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.75rem;
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 0.4rem;
+      font-family: var(--ui);
+    }
+
+    .controls {
+      max-width: 880px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 0.75rem 1.25rem calc(1.35rem + var(--safe-b));
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.55rem 0.75rem;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.85rem 0.95rem;
+      box-shadow: var(--shadow);
+    }
+
+    .toolbar .primary-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+      flex: 1 1 auto;
+    }
+
+    .sliders {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.65rem 1rem;
+      width: 100%;
+      margin-top: 0.15rem;
+    }
+
+    label.field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      font-family: var(--ui);
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--muted);
+      letter-spacing: 0.01em;
+    }
+
+    .field-row {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+    }
+
+    .field-row input[type="range"] {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .field-value {
+      font-family: var(--ui);
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--charcoal);
+      min-width: 5.6rem;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--orp);
+      height: 1.4rem;
+    }
+
+    button {
+      appearance: none;
+      border: 1.5px solid var(--charcoal);
+      background: var(--charcoal);
+      color: var(--cream);
+      border-radius: 999px;
+      padding: 0.58rem 1.15rem;
+      font-family: var(--ui);
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 120ms ease, color 120ms ease, border-color 120ms ease, transform 80ms ease;
+      min-height: 2.5rem;
+    }
+
+    button:hover { transform: translateY(-1px); }
+    button:active { transform: translateY(0); }
+    button:focus-visible {
+      outline: 2px solid rgba(163, 22, 31, 0.5);
+      outline-offset: 2px;
+    }
+
+    button.secondary {
+      background: transparent;
+      color: var(--charcoal);
+    }
+
+    button.secondary:hover {
+      background: rgba(31, 28, 24, 0.05);
+    }
+
+    button.ghost {
+      background: transparent;
+      border-color: transparent;
+      color: var(--muted);
+      padding-inline: 0.7rem;
+      font-weight: 500;
+    }
+
+    button.ghost:hover {
+      color: var(--charcoal);
+      background: rgba(31, 28, 24, 0.05);
+    }
+
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .panels {
+      margin-top: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+    }
+
+    details.panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      transition: opacity 160ms ease, border-color 160ms ease;
+    }
+
+    details.panel[open] {
+      border-color: var(--border-strong);
+      box-shadow: var(--shadow);
+    }
+
+    details.panel summary {
+      list-style: none;
+      cursor: pointer;
+      font-family: var(--ui);
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--charcoal);
+      padding: 0.85rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    details.panel summary::-webkit-details-marker { display: none; }
+
+    details.panel summary .chev {
+      width: 1.4rem;
+      height: 1.4rem;
+      border-radius: 999px;
+      background: var(--panel-2);
+      color: var(--muted);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      transition: transform 160ms ease, background 160ms ease;
+      flex-shrink: 0;
+    }
+
+    details.panel[open] summary .chev {
+      transform: rotate(180deg);
+      background: rgba(163, 22, 31, 0.1);
+      color: var(--orp);
+    }
+
+    .panel-body {
+      padding: 0 1rem 1rem;
+      border-top: 1px solid transparent;
+    }
+
+    details.panel[open] .panel-body {
+      border-top-color: var(--border);
+      padding-top: 0.85rem;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 110px;
+      max-height: 40vh;
+      resize: vertical;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 0.8rem 0.9rem;
+      background: var(--paper);
+      color: var(--charcoal);
+      font-family: var(--serif);
+      font-size: 1.02rem;
+      line-height: 1.5;
+    }
+
+    textarea:focus {
+      outline: 2px solid rgba(163, 22, 31, 0.35);
+      outline-offset: 1px;
+      border-color: #c9a0a3;
+    }
+
+    .hint {
+      margin: 0.7rem 0 0;
+      font-family: var(--ui);
+      font-size: 0.76rem;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .hint kbd {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      background: rgba(31, 28, 24, 0.06);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 0.05rem 0.35rem;
+      font-size: 0.72rem;
+      color: var(--ink);
+    }
+
+    .books-box {
+      font-family: var(--ui);
+      background: var(--paper);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 0.95rem 1rem;
+    }
+
+    .books-box p {
+      margin: 0;
+      font-size: 0.86rem;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .books-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.85rem;
+      align-items: center;
+    }
+
+    .file-btn {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .file-btn input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      font-size: 0;
+    }
+
+    .books-status {
+      margin-top: 0.75rem;
+      font-size: 0.84rem;
+      line-height: 1.45;
+      color: var(--ink);
+      min-height: 1.3em;
+    }
+
+    .books-status.is-error {
+      color: var(--orp);
+      font-weight: 600;
+    }
+
+    .books-status.is-ok {
+      color: #2f5d3a;
+    }
+
+    .books-note {
+      margin-top: 0.7rem;
+      font-size: 0.78rem;
+      color: var(--muted-2);
+      line-height: 1.4;
+    }
+
+
+    .search-block {
+      margin-top: 1rem;
+      padding-top: 0.95rem;
+      border-top: 1px dashed var(--border);
+    }
+
+    .search-block > .search-label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.55rem;
+    }
+
+    .search-row {
+      display: flex;
+      gap: 0.45rem;
+      flex-wrap: wrap;
+      align-items: stretch;
+    }
+
+    .search-row input[type="search"] {
+      flex: 1 1 160px;
+      min-width: 0;
+      border: 1px solid var(--border-strong);
+      border-radius: 10px;
+      padding: 0.55rem 0.75rem;
+      background: #fffef9;
+      color: var(--charcoal);
+      font-family: var(--ui);
+      font-size: 0.92rem;
+    }
+
+    .search-row input[type="search"]:focus {
+      outline: 2px solid rgba(163, 22, 31, 0.35);
+      outline-offset: 1px;
+      border-color: #a88;
+    }
+
+    .source-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.55rem 0.9rem;
+      margin-top: 0.65rem;
+      font-size: 0.84rem;
+      color: var(--ink);
+    }
+
+    .source-filters label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .source-filters input {
+      accent-color: var(--orp);
+    }
+
+    .search-results {
+      list-style: none;
+      margin: 0.75rem 0 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+      max-height: 280px;
+      overflow: auto;
+    }
+
+    .search-results:empty { display: none; }
+
+    .search-results li {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.65rem;
+      padding: 0.65rem 0.7rem;
+      background: #fffef9;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    .result-meta {
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+
+    .result-meta .result-title {
+      display: block;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--charcoal);
+      line-height: 1.3;
+    }
+
+    .result-meta .result-author {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 0.15rem;
+    }
+
+    .result-meta .result-source {
+      display: inline-block;
+      margin-top: 0.3rem;
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted-2);
+      background: var(--cream-deep);
+      border-radius: 999px;
+      padding: 0.12rem 0.45rem;
+    }
+
+    .result-meta .result-source.is-gutenberg { color: #2f5d3a; background: rgba(47,93,58,0.12); }
+    .result-meta .result-source.is-gallica { color: #5a3d1a; background: rgba(163, 100, 22, 0.12); }
+
+    .search-results button.lire {
+      flex: 0 0 auto;
+      padding: 0.4rem 0.75rem;
+      font-size: 0.82rem;
+      white-space: nowrap;
+    }
+
+    .search-status {
+      margin-top: 0.55rem;
+      font-size: 0.82rem;
+      color: var(--muted);
+      min-height: 1.2em;
+    }
+
+    .search-status.is-error { color: var(--orp); font-weight: 600; }
+    .search-status.is-ok { color: #2f5d3a; }
+
+    .badge {
+      display: inline-block;
+      font-family: var(--ui);
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #2f5d3a;
+      background: rgba(47, 93, 58, 0.12);
+      border-radius: 999px;
+      padding: 0.18rem 0.5rem;
+      vertical-align: middle;
+      margin-left: 0.35rem;
+    }
+
+    body.is-playing .panels { opacity: 0.55; }
+
+    body.is-playing #panelText:not([open]),
+    body.is-playing #panelBooks:not([open]) {
+      max-height: 0;
+      opacity: 0;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0,0,0,0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (max-width: 640px) {
+      .topbar { padding: 0.75rem 1rem 0.25rem; }
+      .controls { padding: 0.55rem 1rem calc(1.1rem + var(--safe-b)); }
+      .progress-wrap { padding: 0 1rem; }
+      .sliders { grid-template-columns: 1fr; }
+      .field-value { min-width: 5rem; }
+      .band { min-height: calc(var(--word-size) * 1.7); }
+      .word-slot { min-height: calc(var(--word-size) * 1.7); }
+      button { padding: 0.55rem 0.95rem; font-size: 0.86rem; }
+      .brand strong { font-size: 0.98rem; }
+    }
+
+    @media (min-width: 880px) {
+      .band {
+        mask-image: linear-gradient(to right, transparent 0%, #000 4%, #000 96%, transparent 100%);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">
+      <strong id="brandTitle">Lecture rapide</strong>
+      <span class="book-meta" id="brandSub">RSVP + ORP</span>
+    </div>
+    <div class="top-actions">
+      <button type="button" class="ghost" id="btnFocus" title="Masquer / afficher les panneaux texte" aria-pressed="false">Focus</button>
+      <button type="button" class="secondary" id="btnSample" title="Charger un texte d’exemple">Exemple</button>
+    </div>
+  </div>
+
+  <p class="header-prompt" id="prompt">Collez un texte, puis lancez la lecture</p>
+
+  <div class="reader-stage" id="stage" tabindex="0" role="button" aria-label="Zone de lecture — cliquer pour lecture ou pause">
+    <div class="band" aria-live="polite" aria-atomic="true">
+      <span class="tick top" aria-hidden="true"></span>
+      <span class="tick bottom" aria-hidden="true"></span>
+      <div class="word-slot">
+        <div class="word" id="word">
+          <span class="before"></span><span class="orp">·</span><span class="after"></span>
+        </div>
+      </div>
+    </div>
+    <div class="speed" id="speedLabel" aria-live="off">250 mots/min</div>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress" aria-hidden="true"><span id="progressBar"></span></div>
+    <div class="meta">
+      <span id="wordCount">0 / 0 mots</span>
+      <span id="stateLabel">prêt</span>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="toolbar" role="group" aria-label="Contrôles de lecture">
+      <div class="primary-actions">
+        <button type="button" id="btnPlay">Lire</button>
+        <button type="button" class="secondary" id="btnReset">Début</button>
+      </div>
+
+      <div class="sliders">
+        <label class="field" for="wpm">
+          Vitesse
+          <span class="field-row">
+            <input type="range" id="wpm" min="150" max="800" step="25" value="250" />
+            <span class="field-value" id="wpmValue">250 m/min</span>
+          </span>
+        </label>
+        <label class="field" for="fontSize">
+          Taille
+          <span class="field-row">
+            <input type="range" id="fontSize" min="22" max="64" step="1" value="48" />
+            <span class="field-value" id="fontValue">48 px</span>
+          </span>
+        </label>
+      </div>
+    </div>
+
+    <div class="panels" id="panels">
+      <details class="panel" id="panelText" open>
+        <summary>
+          <span>Texte à lire</span>
+          <span class="chev" aria-hidden="true">▾</span>
+        </summary>
+        <div class="panel-body">
+          <label class="sr-only" for="textInput">Collez votre texte</label>
+          <textarea id="textInput" spellcheck="true" placeholder="Collez ici un paragraphe en français…"></textarea>
+          <p class="hint">
+            <kbd>Espace</kbd> lecture / pause ·
+            <kbd>←</kbd> <kbd>→</kbd> mot préc. / suiv. ·
+            <kbd>Esc</kbd> quitter le champ texte ·
+            ponctuation un peu plus lente.
+          </p>
+        </div>
+      </details>
+
+      <details class="panel" id="panelBooks" open>
+        <summary>
+          <span>Livres <span class="badge">libre</span></span>
+          <span class="chev" aria-hidden="true">▾</span>
+        </summary>
+        <div class="panel-body">
+          <div class="books-box">
+            <p>
+              Importez un livre que vous possédez déjà (<strong>.epub</strong> ou <strong>.txt</strong>),
+              ou cherchez un titre libre sur <strong>Project Gutenberg</strong> et <strong>Gallica</strong> (BnF).
+            </p>
+            <div class="books-actions">
+              <button type="button" class="file-btn" id="btnPickBook">
+                Choisir un fichier…
+                <input type="file" id="bookFile" accept=".epub,.txt,application/epub+zip,text/plain" />
+              </button>
+              <button type="button" class="secondary" id="btnClearBook" disabled>Retirer le livre</button>
+            </div>
+            <div class="books-status" id="booksStatus" role="status" aria-live="polite"></div>
+
+            <div class="search-block">
+              <span class="search-label">Catalogue libre (FR)</span>
+              <div class="search-row">
+                <label class="sr-only" for="bookSearch">Rechercher un livre</label>
+                <input type="search" id="bookSearch" placeholder="Hugo, Dumas, Zola…" autocomplete="off" />
+                <button type="button" id="btnSearchBooks">Chercher</button>
+              </div>
+              <div class="source-filters" role="group" aria-label="Sources">
+                <label><input type="radio" name="bookSource" value="both" checked /> Les deux</label>
+                <label><input type="radio" name="bookSource" value="gutenberg" /> Gutenberg</label>
+                <label><input type="radio" name="bookSource" value="gallica" /> Gallica</label>
+              </div>
+              <div class="search-status" id="searchStatus" role="status" aria-live="polite"></div>
+              <ul class="search-results" id="searchResults"></ul>
+            </div>
+
+            <p class="books-note">
+              Les EPUB avec DRM ne peuvent pas être lus ici.
+              La recherche en ligne nécessite <code>python3 server.py</code>
+              (proxy CORS pour Gutenberg / Gallica).
+            </p>
+          </div>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const SAMPLE = (
+        "La lecture rapide n’est pas une course contre la montre : c’est un entraînement " +
+        "du regard. Au lieu de faire rebondir les yeux de mot en mot, on fixe un point " +
+        "central et on laisse défiler le texte. La lettre rouge indique le point optimal " +
+        "de reconnaissance — l’endroit où le cerveau saisit le mieux chaque mot. " +
+        "Commencez doucement, autour de deux cent cinquante mots par minute. " +
+        "Puis augmentez progressivement. Avec un peu de pratique, le sens arrive avant " +
+        "même que l’on ait le temps de « prononcer » les mots dans sa tête. " +
+        "Respirez, restez détendu, et laissez les mots venir à vous."
+      );
+
+      const el = {
+        text: document.getElementById("textInput"),
+        wpm: document.getElementById("wpm"),
+        wpmValue: document.getElementById("wpmValue"),
+        fontSize: document.getElementById("fontSize"),
+        fontValue: document.getElementById("fontValue"),
+        speedLabel: document.getElementById("speedLabel"),
+        word: document.getElementById("word"),
+        stage: document.getElementById("stage"),
+        btnPlay: document.getElementById("btnPlay"),
+        btnReset: document.getElementById("btnReset"),
+        btnSample: document.getElementById("btnSample"),
+        btnFocus: document.getElementById("btnFocus"),
+        prompt: document.getElementById("prompt"),
+        progressBar: document.getElementById("progressBar"),
+        wordCount: document.getElementById("wordCount"),
+        stateLabel: document.getElementById("stateLabel"),
+        panelText: document.getElementById("panelText"),
+        panelBooks: document.getElementById("panelBooks"),
+        brandTitle: document.getElementById("brandTitle"),
+        brandSub: document.getElementById("brandSub"),
+        bookFile: document.getElementById("bookFile"),
+        btnClearBook: document.getElementById("btnClearBook"),
+        booksStatus: document.getElementById("booksStatus"),
+        bookSearch: document.getElementById("bookSearch"),
+        btnSearchBooks: document.getElementById("btnSearchBooks"),
+        searchStatus: document.getElementById("searchStatus"),
+        searchResults: document.getElementById("searchResults"),
+      };
+      el.before = el.word.querySelector(".before");
+      el.orp = el.word.querySelector(".orp");
+      el.after = el.word.querySelector(".after");
+
+      const state = {
+        words: [],
+        index: 0,
+        playing: false,
+        timer: null,
+        prepared: false,
+        focusLocked: false,
+        bookTitle: "",
+        bookCreator: "",
+        sourceLabel: "",
+      };
+
+      function orpIndex(len) {
+        if (len <= 1) return 0;
+        if (len <= 5) return 1;
+        if (len <= 9) return 2;
+        if (len <= 13) return 3;
+        return 4;
+      }
+
+      function tokenize(text) {
+        const raw = String(text || "").replace(/\s+/g, " ").trim();
+        if (!raw) return [];
+        return raw.split(" ").filter(Boolean);
+      }
+
+      function delayFor(word, wpm) {
+        const base = 60000 / Math.max(60, wpm);
+        if (/[.!?…]["»’”)]*$/u.test(word)) return base * 1.7;
+        if (/[,;:]["»’”)]*$/u.test(word)) return base * 1.3;
+        if (word.length >= 10) return base * 1.15;
+        return base;
+      }
+
+      function applyFocusMode(on) {
+        document.body.classList.toggle("is-playing", on || state.focusLocked);
+        if (on) {
+          if (el.panelText.open) el.panelText.open = false;
+          if (el.panelBooks.open) el.panelBooks.open = false;
+        }
+      }
+
+      function updateBrand() {
+        if (state.bookTitle) {
+          el.brandTitle.textContent = state.bookTitle;
+          el.brandSub.textContent = state.bookCreator
+            ? state.bookCreator + " · RSVP + ORP"
+            : "RSVP + ORP";
+          document.title = state.bookTitle + " — Lecture rapide";
+        } else {
+          el.brandTitle.textContent = "Lecture rapide";
+          el.brandSub.textContent = "RSVP + ORP";
+          document.title = "Lecture rapide — RSVP + ORP";
+        }
+      }
+
+      function setBooksStatus(msg, kind) {
+        el.booksStatus.textContent = msg || "";
+        el.booksStatus.classList.remove("is-error", "is-ok");
+        if (kind === "error") el.booksStatus.classList.add("is-error");
+        if (kind === "ok") el.booksStatus.classList.add("is-ok");
+      }
+
+      function setPlayingUI(playing) {
+        el.btnPlay.textContent = playing
+          ? "Pause"
+          : (state.index > 0 && state.index < state.words.length ? "Reprendre" : "Lire");
+
+        if (playing) {
+          el.stateLabel.textContent = "lecture";
+        } else if (state.words.length && state.index >= state.words.length) {
+          el.stateLabel.textContent = "terminé";
+        } else if (state.index > 0) {
+          el.stateLabel.textContent = "pause";
+        } else {
+          el.stateLabel.textContent = "prêt";
+        }
+
+        if (playing) {
+          el.prompt.textContent = state.bookTitle
+            ? state.bookTitle + " — fixez le centre"
+            : "Fixez le centre — laissez les mots venir";
+        } else if (state.words.length && state.index >= state.words.length) {
+          el.prompt.textContent = "Fin du texte — appuyez sur Début";
+        } else if (state.bookTitle) {
+          el.prompt.textContent = state.bookTitle + (state.bookCreator ? " — " + state.bookCreator : "");
+        } else {
+          el.prompt.textContent = "Collez un texte, puis lancez la lecture";
+        }
+
+        applyFocusMode(playing || state.focusLocked);
+      }
+
+      function updateProgress() {
+        const total = state.words.length;
+        const i = Math.min(state.index, total);
+        el.wordCount.textContent = total
+          ? `${Math.min(i + 1, total)} / ${total} mots`
+          : "0 / 0 mots";
+        const pct = total ? ((state.index >= total ? total : i) / total) * 100 : 0;
+        el.progressBar.style.width = pct + "%";
+      }
+
+      function syncWpmLabels() {
+        const v = Number(el.wpm.value);
+        el.wpmValue.textContent = v + " m/min";
+        el.speedLabel.textContent = v + " mots/min";
+      }
+
+      function syncFontSize() {
+        const px = Number(el.fontSize.value);
+        document.documentElement.style.setProperty("--word-size", px + "px");
+        el.fontValue.textContent = px + " px";
+        if (state.words.length && state.index < state.words.length) {
+          renderWord(state.words[state.index]);
+        } else if (!state.words.length) {
+          renderWord("");
+        }
+      }
+
+      function renderWord(word) {
+        if (!word) {
+          el.before.textContent = "";
+          el.orp.textContent = "·";
+          el.after.textContent = "";
+          el.word.style.transform = "translate(-50%, -50%)";
+          return;
+        }
+
+        const chars = Array.from(word);
+        const idx = Math.min(orpIndex(chars.length), chars.length - 1);
+        el.before.textContent = chars.slice(0, idx).join("");
+        el.orp.textContent = chars[idx] || "";
+        el.after.textContent = chars.slice(idx + 1).join("");
+
+        el.word.style.transform = "translate(0, -50%)";
+        el.word.style.left = "50%";
+
+        const orpRect = el.orp.getBoundingClientRect();
+        const wordRect = el.word.getBoundingClientRect();
+        const orpCenterInWord = (orpRect.left - wordRect.left) + orpRect.width / 2;
+        el.word.style.transform = `translate(-${orpCenterInWord}px, -50%)`;
+      }
+
+      function clearTimer() {
+        if (state.timer != null) {
+          clearTimeout(state.timer);
+          state.timer = null;
+        }
+      }
+
+      function prepareFromTextarea() {
+        state.words = tokenize(el.text.value);
+        state.index = 0;
+        state.prepared = state.words.length > 0;
+        clearTimer();
+        state.playing = false;
+        if (state.prepared) renderWord(state.words[0]);
+        else renderWord("");
+        setPlayingUI(false);
+        updateProgress();
+      }
+
+      function loadDocument(text, meta) {
+        pause();
+        meta = meta || {};
+        state.bookTitle = meta.title || "";
+        state.bookCreator = meta.creator || "";
+        state.sourceLabel = meta.source || "";
+        el.text.value = text;
+        updateBrand();
+        prepareFromTextarea();
+        el.btnClearBook.disabled = !(state.bookTitle || state.sourceLabel);
+        el.panelBooks.open = true;
+        if (state.words.length) {
+          el.prompt.textContent = (state.bookTitle || "Texte importé") +
+            " — " + state.words.length.toLocaleString("fr-FR") + " mots · appuyez sur Lire";
+        }
+      }
+
+      function showCurrent() {
+        if (!state.words.length) {
+          renderWord("");
+          updateProgress();
+          return;
+        }
+        if (state.index >= state.words.length) {
+          state.playing = false;
+          clearTimer();
+          setPlayingUI(false);
+          updateProgress();
+          return;
+        }
+        renderWord(state.words[state.index]);
+        updateProgress();
+      }
+
+      function scheduleNext() {
+        clearTimer();
+        if (!state.playing) return;
+        const word = state.words[state.index];
+        const wait = delayFor(word, Number(el.wpm.value));
+        state.timer = setTimeout(() => {
+          state.index += 1;
+          if (state.index >= state.words.length) {
+            state.playing = false;
+            showCurrent();
+            setPlayingUI(false);
+            el.stateLabel.textContent = "terminé";
+            el.prompt.textContent = "Fin du texte — appuyez sur Début";
+            el.progressBar.style.width = "100%";
+            el.wordCount.textContent = `${state.words.length} / ${state.words.length} mots`;
+            return;
+          }
+          showCurrent();
+          scheduleNext();
+        }, wait);
+      }
+
+      function play() {
+        if (!state.words.length) prepareFromTextarea();
+        if (!state.words.length) {
+          el.prompt.textContent = "Ajoutez d’abord un texte à lire";
+          el.panelText.open = true;
+          return;
+        }
+        if (state.index >= state.words.length) state.index = 0;
+        state.playing = true;
+        setPlayingUI(true);
+        showCurrent();
+        scheduleNext();
+        el.stage.focus({ preventScroll: true });
+      }
+
+      function pause() {
+        state.playing = false;
+        clearTimer();
+        setPlayingUI(false);
+      }
+
+      function toggle() {
+        if (state.playing) pause();
+        else play();
+      }
+
+      function reset() {
+        pause();
+        prepareFromTextarea();
+        if (state.words.length) {
+          renderWord(state.words[0]);
+          el.stateLabel.textContent = "prêt";
+        }
+      }
+
+      function step(delta) {
+        if (!state.words.length) return;
+        pause();
+        state.index = Math.max(0, Math.min(state.words.length - 1, state.index + delta));
+        showCurrent();
+        setPlayingUI(false);
+      }
+
+      function toggleFocusLock() {
+        state.focusLocked = !state.focusLocked;
+        el.btnFocus.setAttribute("aria-pressed", state.focusLocked ? "true" : "false");
+        el.btnFocus.textContent = state.focusLocked ? "Focus · on" : "Focus";
+        if (state.focusLocked) {
+          el.panelText.open = false;
+          el.panelBooks.open = false;
+        }
+        applyFocusMode(state.playing || state.focusLocked);
+      }
+
+      /* ========== EPUB / TXT import ========== */
+      function decodeXmlEntities(s) {
+        return String(s)
+          .replace(/&nbsp;/gi, " ")
+          .replace(/&#160;/g, " ")
+          .replace(/&#xa0;/gi, " ")
+          .replace(/&amp;/g, "&")
+          .replace(/&lt;/g, "<")
+          .replace(/&gt;/g, ">")
+          .replace(/&quot;/g, '"')
+          .replace(/&apos;/g, "'")
+          .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+          .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)));
+      }
+
+      function htmlToText(html) {
+        let s = String(html);
+        s = s.replace(/<script[\s\S]*?<\/script>/gi, " ");
+        s = s.replace(/<style[\s\S]*?<\/style>/gi, " ");
+        s = s.replace(/<(br|BR)\s*\/?>/g, "\n");
+        s = s.replace(/<\/(p|div|h[1-6]|li|tr|blockquote|section|article|header|footer)>/gi, "\n");
+        s = s.replace(/<[^>]+>/g, " ");
+        s = decodeXmlEntities(s);
+        s = s.replace(/\u00a0/g, " ");
+        s = s.replace(/[ \t\f\v]+/g, " ");
+        s = s.replace(/\n[ \t]+/g, "\n");
+        s = s.replace(/[ \t]+\n/g, "\n");
+        s = s.replace(/\n{3,}/g, "\n\n");
+        return s.trim();
+      }
+
+      function resolvePath(baseDir, href) {
+        const clean = String(href || "").split("#")[0].split("?")[0];
+        const parts = (baseDir ? baseDir + "/" : "").split("/").filter(Boolean);
+        for (const seg of clean.split("/")) {
+          if (!seg || seg === ".") continue;
+          if (seg === "..") parts.pop();
+          else parts.push(seg);
+        }
+        return parts.join("/");
+      }
+
+      async function parseEpub(arrayBuffer) {
+        if (typeof JSZip === "undefined") {
+          throw new Error("Bibliothèque JSZip manquante (vendor/jszip.min.js).");
+        }
+        const zip = await JSZip.loadAsync(arrayBuffer);
+
+        if (zip.file("META-INF/encryption.xml")) {
+          throw new Error(
+            "Ce livre EPUB est protégé par un DRM (chiffrement). " +
+            "Impossible de l’ouvrir ici — utilisez un fichier sans DRM."
+          );
+        }
+
+        const containerEntry = zip.file("META-INF/container.xml");
+        if (!containerEntry) throw new Error("EPUB invalide : META-INF/container.xml manquant.");
+        const container = await containerEntry.async("string");
+        const pathMatch = container.match(/full-path\s*=\s*"([^"]+)"/i);
+        if (!pathMatch) throw new Error("EPUB invalide : chemin OPF introuvable.");
+        const opfPath = pathMatch[1];
+        const opfDir = opfPath.includes("/") ? opfPath.replace(/\/[^/]+$/, "") : "";
+        const opfEntry = zip.file(opfPath);
+        if (!opfEntry) throw new Error("EPUB invalide : fichier OPF manquant.");
+        const opf = await opfEntry.async("string");
+
+        const titleMatch = opf.match(/<dc:title[^>]*>([^<]+)<\/dc:title>/i);
+        const creatorMatch = opf.match(/<dc:creator[^>]*>([^<]+)<\/dc:creator>/i);
+        const title = titleMatch ? decodeXmlEntities(titleMatch[1]).trim() : "";
+        const creator = creatorMatch ? decodeXmlEntities(creatorMatch[1]).trim() : "";
+
+        const manifest = new Map();
+        const itemRe = /<item\b([^>]*)\/?>/gi;
+        let im;
+        while ((im = itemRe.exec(opf))) {
+          const attrs = im[1];
+          const id = (attrs.match(/\bid\s*=\s*"([^"]+)"/i) || [])[1];
+          const href = (attrs.match(/\bhref\s*=\s*"([^"]+)"/i) || [])[1];
+          const media = (attrs.match(/\bmedia-type\s*=\s*"([^"]+)"/i) || [])[1] || "";
+          if (id && href) manifest.set(id, { href, media });
+        }
+
+        const spineIds = [];
+        const spineRe = /<itemref\b([^>]*)\/?>/gi;
+        let sm;
+        while ((sm = spineRe.exec(opf))) {
+          const idref = (sm[1].match(/\bidref\s*=\s*"([^"]+)"/i) || [])[1];
+          if (idref) spineIds.push(idref);
+        }
+        if (!spineIds.length) throw new Error("EPUB invalide : spine vide.");
+
+        const chunks = [];
+        for (const id of spineIds) {
+          const item = manifest.get(id);
+          if (!item) continue;
+          if (!/html|xml|xhtml/i.test(item.media) && !/\.x?html?$/i.test(item.href)) continue;
+          const full = resolvePath(opfDir, item.href);
+          const file = zip.file(full) || zip.file(decodeURIComponent(full));
+          if (!file) continue;
+          const html = await file.async("string");
+          if (/encryption:EncryptedData|adept:encrypted/i.test(html) && /CipherValue/i.test(html)) {
+            throw new Error(
+              "Ce livre EPUB contient des chapitres chiffrés (DRM). " +
+              "Impossible de l’ouvrir ici."
+            );
+          }
+          const text = htmlToText(html);
+          if (text) chunks.push(text);
+        }
+
+        const fullText = chunks.join("\n\n").replace(/\n{3,}/g, "\n\n").trim();
+        if (!fullText) throw new Error("Aucun texte extractible dans cet EPUB.");
+        return { title, creator, text: fullText, chapters: chunks.length };
+      }
+
+      async function handleBookFile(file) {
+        if (!file) return;
+        const name = file.name || "livre";
+        const lower = name.toLowerCase();
+        setBooksStatus("Ouverture de « " + name + " »…");
+        el.btnClearBook.disabled = true;
+
+        try {
+          if (lower.endsWith(".txt") || (file.type || "").startsWith("text/")) {
+            const text = await file.text();
+            if (!String(text).trim()) throw new Error("Le fichier texte est vide.");
+            const base = name.replace(/\.txt$/i, "");
+            loadDocument(text, { title: base, source: name });
+            setBooksStatus(
+              "TXT chargé — " + state.words.length.toLocaleString("fr-FR") + " mots.",
+              "ok"
+            );
+            return;
+          }
+
+          if (lower.endsWith(".epub") || file.type === "application/epub+zip") {
+            const buf = await file.arrayBuffer();
+            const parsed = await parseEpub(buf);
+            loadDocument(parsed.text, {
+              title: parsed.title || name.replace(/\.epub$/i, ""),
+              creator: parsed.creator || "",
+              source: name,
+            });
+            setBooksStatus(
+              "EPUB chargé" +
+                (parsed.title ? " : " + parsed.title : "") +
+                (parsed.creator ? " — " + parsed.creator : "") +
+                " · " + parsed.chapters + " sections · " +
+                state.words.length.toLocaleString("fr-FR") + " mots.",
+              "ok"
+            );
+            return;
+          }
+
+          throw new Error("Format non pris en charge. Choisissez un fichier .epub ou .txt.");
+        } catch (err) {
+          console.error(err);
+          setBooksStatus(err && err.message ? err.message : "Échec de l’import.", "error");
+        } finally {
+          el.bookFile.value = "";
+        }
+      }
+
+
+      /* ========== Catalogue Gutenberg / Gallica ========== */
+      let proxyAvailable = null; // null = unknown, true/false after probe
+
+      function setSearchStatus(msg, kind) {
+        el.searchStatus.textContent = msg || "";
+        el.searchStatus.classList.toggle("is-error", kind === "error");
+        el.searchStatus.classList.toggle("is-ok", kind === "ok");
+      }
+
+      function selectedSource() {
+        const r = document.querySelector('input[name="bookSource"]:checked');
+        return (r && r.value) || "both";
+      }
+
+      async function probeProxy() {
+        if (proxyAvailable !== null) return proxyAvailable;
+        try {
+          const res = await fetch("/api/health", { method: "GET", cache: "no-store" });
+          const data = await res.json();
+          proxyAvailable = !!(res.ok && data && data.proxy);
+        } catch (_) {
+          proxyAvailable = false;
+        }
+        return proxyAvailable;
+      }
+
+      function proxyUrl(absoluteUrl) {
+        return "/api/proxy?url=" + encodeURIComponent(absoluteUrl);
+      }
+
+      async function fetchViaProxyOrDirect(absoluteUrl, options) {
+        options = options || {};
+        const hasProxy = await probeProxy();
+        if (hasProxy) {
+          const res = await fetch(proxyUrl(absoluteUrl), options);
+          return res;
+        }
+        // Direct (works for Gutendex CORS *; EPUB downloads usually need the proxy)
+        return fetch(absoluteUrl, options);
+      }
+
+      async function readFetchError(res) {
+        const ct = (res.headers.get("Content-Type") || "").toLowerCase();
+        try {
+          if (ct.includes("json")) {
+            const j = await res.json();
+            if (j && j.error) return j.error;
+          } else {
+            const t = await res.text();
+            if (t && t.length < 280) return t;
+          }
+        } catch (_) {}
+        return "Erreur réseau (HTTP " + res.status + ").";
+      }
+
+      function pickGutendexEpub(formats) {
+        if (!formats) return null;
+        const entries = Object.entries(formats);
+        const epubs = entries.filter(([k, v]) => {
+          if (!v || typeof v !== "string") return false;
+          const key = k.toLowerCase();
+          if (!key.includes("epub")) return false;
+          if (key.includes("kindle") || key.includes("mobipocket")) return false;
+          if (/\.zip$/i.test(v) && !/epub/i.test(v)) return false;
+          return true;
+        });
+        if (!epubs.length) return null;
+        // Prefer noimages (lighter), then plain epub+zip, then epub3
+        const score = (k, v) => {
+          let s = 0;
+          const kl = k.toLowerCase();
+          const vl = v.toLowerCase();
+          if (kl.includes("epub+zip")) s += 10;
+          if (vl.includes("noimages")) s += 5;
+          if (vl.includes("epub3")) s += 1;
+          if (vl.includes("images") && !vl.includes("noimages")) s -= 1;
+          return s;
+        };
+        epubs.sort((a, b) => score(b[0], b[1]) - score(a[0], a[1]));
+        return epubs[0][1];
+      }
+
+      function formatAuthorGutendex(authors) {
+        if (!authors || !authors.length) return "";
+        return authors.map((a) => {
+          const n = (a && a.name) || "";
+          // "Hugo, Victor" → "Victor Hugo"
+          if (n.includes(",")) {
+            const parts = n.split(",").map((s) => s.trim());
+            if (parts.length >= 2) return parts.slice(1).join(" ") + " " + parts[0];
+          }
+          return n;
+        }).filter(Boolean).join(", ");
+      }
+
+      async function searchGutendex(query) {
+        const url =
+          "https://gutendex.com/books/?search=" +
+          encodeURIComponent(query) +
+          "&languages=fr";
+        const res = await fetchViaProxyOrDirect(url);
+        if (!res.ok) throw new Error(await readFetchError(res));
+        const data = await res.json();
+        const results = (data && data.results) || [];
+        const out = [];
+        for (const b of results) {
+          const epub = pickGutendexEpub(b.formats);
+          if (!epub) continue;
+          out.push({
+            id: "pg-" + b.id,
+            title: b.title || "Sans titre",
+            author: formatAuthorGutendex(b.authors),
+            source: "Gutenberg",
+            sourceKey: "gutenberg",
+            epubUrl: epub,
+          });
+        }
+        return out;
+      }
+
+      function parseGallicaOpds(xmlText) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(xmlText, "application/xml");
+        if (doc.querySelector("parsererror")) {
+          throw new Error("Réponse Gallica illisible (XML invalide).");
+        }
+        const entries = Array.from(doc.getElementsByTagName("entry"));
+        const out = [];
+        for (const entry of entries) {
+          const titleEl = entry.getElementsByTagName("title")[0];
+          const title = titleEl ? titleEl.textContent.trim() : "";
+          const authors = Array.from(entry.getElementsByTagName("author"))
+            .map((a) => {
+              const n = a.getElementsByTagName("name")[0];
+              return n ? n.textContent.trim() : "";
+            })
+            .filter(Boolean);
+          const links = Array.from(entry.getElementsByTagName("link"));
+          let epubUrl = null;
+          for (const link of links) {
+            const type = (link.getAttribute("type") || "").toLowerCase();
+            const rel = (link.getAttribute("rel") || "").toLowerCase();
+            const href = (link.getAttribute("href") || "").trim();
+            if (!href) continue;
+            if (type.includes("epub") || /\.epub(\b|$)/i.test(href) || rel.includes("acquisition")) {
+              if (type.includes("epub") || /\.epub(\b|$)/i.test(href)) {
+                epubUrl = href.replace(/^http:\/\//i, "https://");
+                break;
+              }
+            }
+          }
+          if (!epubUrl || !title) continue;
+          // Skip navigation-only entries (no real book)
+          out.push({
+            id: "gal-" + epubUrl,
+            title: title.replace(/\s+/g, " "),
+            author: authors.join(", ").replace(/\s+/g, " "),
+            source: "Gallica",
+            sourceKey: "gallica",
+            epubUrl,
+          });
+        }
+        return out;
+      }
+
+      async function searchGallica(query) {
+        // SRU CQL: free text + EPUB only
+        const q =
+          'gallica all "' + query.replace(/"/g, "") + '" and dc.formatspecific all "epub"';
+        const url =
+          "https://gallica.bnf.fr/services/engine/search/opds" +
+          "?operation=searchRetrieve&version=1.2&exactSearch=false&maximumRecords=20&query=" +
+          encodeURIComponent(q);
+        const res = await fetchViaProxyOrDirect(url);
+        if (!res.ok) throw new Error(await readFetchError(res));
+        const ct = (res.headers.get("Content-Type") || "").toLowerCase();
+        const text = await res.text();
+        if (ct.includes("json") && text.trim().startsWith("{")) {
+          try {
+            const j = JSON.parse(text);
+            if (j.error) throw new Error(j.error);
+          } catch (e) {
+            if (e.message && !e.message.includes("JSON")) throw e;
+          }
+        }
+        if (text.includes("Just a moment") || text.includes("cf-error-details")) {
+          throw new Error(
+            "Gallica a bloqué la requête (Cloudflare). Essayez Gutenberg, ou relancez plus tard."
+          );
+        }
+        return parseGallicaOpds(text);
+      }
+
+      function renderSearchResults(items) {
+        el.searchResults.innerHTML = "";
+        for (const item of items) {
+          const li = document.createElement("li");
+          const meta = document.createElement("div");
+          meta.className = "result-meta";
+          const t = document.createElement("span");
+          t.className = "result-title";
+          t.textContent = item.title;
+          meta.appendChild(t);
+          if (item.author) {
+            const a = document.createElement("span");
+            a.className = "result-author";
+            a.textContent = item.author;
+            meta.appendChild(a);
+          }
+          const src = document.createElement("span");
+          src.className = "result-source is-" + item.sourceKey;
+          src.textContent = item.source;
+          meta.appendChild(src);
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "lire";
+          btn.textContent = "Lire";
+          btn.addEventListener("click", () => loadRemoteEpub(item, btn));
+          li.appendChild(meta);
+          li.appendChild(btn);
+          el.searchResults.appendChild(li);
+        }
+      }
+
+      async function runBookSearch() {
+        const q = (el.bookSearch.value || "").trim();
+        if (!q) {
+          setSearchStatus("Saisissez un titre ou un auteur.", "error");
+          return;
+        }
+        const source = selectedSource();
+        el.btnSearchBooks.disabled = true;
+        el.searchResults.innerHTML = "";
+        setSearchStatus("Recherche en cours…");
+
+        const hasProxy = await probeProxy();
+        if (!hasProxy && (source === "gutenberg" || source === "both" || source === "gallica")) {
+          // Gutendex may work without proxy; downloads and Gallica need it
+          setSearchStatus(
+            "Conseil : lancez python3 server.py pour le proxy (téléchargements EPUB / Gallica).",
+            null
+          );
+        }
+
+        const parts = [];
+        const errors = [];
+        try {
+          if (source === "gutenberg" || source === "both") {
+            try {
+              parts.push(...(await searchGutendex(q)));
+            } catch (e) {
+              errors.push("Gutenberg : " + (e.message || e));
+            }
+          }
+          if (source === "gallica" || source === "both") {
+            try {
+              parts.push(...(await searchGallica(q)));
+            } catch (e) {
+              errors.push("Gallica : " + (e.message || e));
+            }
+          }
+        } finally {
+          el.btnSearchBooks.disabled = false;
+        }
+
+        // Dedupe by title+author roughly
+        const seen = new Set();
+        const unique = [];
+        for (const it of parts) {
+          const key = (it.title + "|" + it.author).toLowerCase();
+          if (seen.has(key)) continue;
+          seen.add(key);
+          unique.push(it);
+        }
+
+        renderSearchResults(unique);
+        if (!unique.length) {
+          const detail = errors.length ? " — " + errors.join(" · ") : "";
+          setSearchStatus("Aucun résultat EPUB pour « " + q + " »." + detail, "error");
+        } else {
+          let msg = unique.length + " livre" + (unique.length > 1 ? "s" : "") + " trouvé" + (unique.length > 1 ? "s" : "") + ".";
+          if (errors.length) msg += " (" + errors.join(" · ") + ")";
+          setSearchStatus(msg, errors.length && unique.length ? null : "ok");
+        }
+      }
+
+      async function loadRemoteEpub(item, btn) {
+        const prev = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = "…";
+        setBooksStatus("Téléchargement de « " + item.title + " » (" + item.source + ")…");
+        setSearchStatus("Chargement de l’EPUB…");
+        try {
+          const hasProxy = await probeProxy();
+          if (!hasProxy) {
+            throw new Error(
+              "Le téléchargement EPUB nécessite le proxy local. Lancez : python3 server.py"
+            );
+          }
+          const res = await fetch(proxyUrl(item.epubUrl));
+          if (!res.ok) throw new Error(await readFetchError(res));
+          const ct = (res.headers.get("Content-Type") || "").toLowerCase();
+          if (ct.includes("json")) {
+            const j = await res.json();
+            throw new Error((j && j.error) || "Réponse inattendue du proxy.");
+          }
+          const buf = await res.arrayBuffer();
+          if (!buf || buf.byteLength < 100) {
+            throw new Error("Fichier EPUB vide ou trop petit.");
+          }
+          // Quick ZIP magic check
+          const head = new Uint8Array(buf.slice(0, 4));
+          if (!(head[0] === 0x50 && head[1] === 0x4b)) {
+            // Might be HTML error page
+            const asText = new TextDecoder("utf-8", { fatal: false }).decode(buf.slice(0, 400));
+            if (/Just a moment|cf-error|<!DOCTYPE/i.test(asText)) {
+              throw new Error("La source a renvoyé une page d’erreur au lieu de l’EPUB.");
+            }
+            throw new Error("Le fichier téléchargé n’est pas un EPUB valide.");
+          }
+          const parsed = await parseEpub(buf);
+          loadDocument(parsed.text, {
+            title: parsed.title || item.title,
+            creator: parsed.creator || item.author || "",
+            source: item.source + " · " + (item.epubUrl.split("/").pop() || "epub"),
+          });
+          const n = state.words.length;
+          if (!n) throw new Error("EPUB chargé mais aucun mot extractible.");
+          setBooksStatus(
+            "EPUB chargé : " +
+              (parsed.title || item.title) +
+              (parsed.creator || item.author ? " — " + (parsed.creator || item.author) : "") +
+              " · " +
+              n.toLocaleString("fr-FR") +
+              " mots (" +
+              item.source +
+              ").",
+            "ok"
+          );
+          setSearchStatus("Livre ouvert dans le lecteur.", "ok");
+        } catch (err) {
+          console.error(err);
+          const msg = err && err.message ? err.message : "Échec du chargement.";
+          setBooksStatus(msg, "error");
+          setSearchStatus(msg, "error");
+        } finally {
+          btn.disabled = false;
+          btn.textContent = prev;
+        }
+      }
+
+      function clearBook() {
+        pause();
+        state.bookTitle = "";
+        state.bookCreator = "";
+        state.sourceLabel = "";
+        updateBrand();
+        el.text.value = SAMPLE;
+        prepareFromTextarea();
+        el.btnClearBook.disabled = true;
+        setBooksStatus("Livre retiré — exemple restauré.");
+      }
+
+      // Events
+      el.wpm.addEventListener("input", () => {
+        syncWpmLabels();
+        if (state.playing) {
+          clearTimer();
+          scheduleNext();
+        }
+      });
+
+      el.fontSize.addEventListener("input", syncFontSize);
+
+      el.text.addEventListener("change", () => {
+        if (!state.playing) prepareFromTextarea();
+      });
+
+      el.text.addEventListener("blur", () => {
+        if (!state.playing) prepareFromTextarea();
+      });
+
+      el.btnPlay.addEventListener("click", (e) => {
+        e.stopPropagation();
+        toggle();
+      });
+      el.btnReset.addEventListener("click", (e) => {
+        e.stopPropagation();
+        reset();
+      });
+      el.btnSample.addEventListener("click", (e) => {
+        e.stopPropagation();
+        pause();
+        state.bookTitle = "";
+        state.bookCreator = "";
+        state.sourceLabel = "";
+        updateBrand();
+        el.text.value = SAMPLE;
+        el.panelText.open = true;
+        state.focusLocked = false;
+        el.btnFocus.setAttribute("aria-pressed", "false");
+        el.btnFocus.textContent = "Focus";
+        el.btnClearBook.disabled = true;
+        prepareFromTextarea();
+        setBooksStatus("");
+        el.prompt.textContent = "Exemple chargé — appuyez sur Lire";
+      });
+      el.btnFocus.addEventListener("click", (e) => {
+        e.stopPropagation();
+        toggleFocusLock();
+      });
+
+      el.bookFile.addEventListener("change", () => {
+        const f = el.bookFile.files && el.bookFile.files[0];
+        handleBookFile(f);
+      });
+      el.btnClearBook.addEventListener("click", (e) => {
+        e.stopPropagation();
+        clearBook();
+      });
+
+      el.btnSearchBooks.addEventListener("click", (e) => {
+        e.stopPropagation();
+        runBookSearch();
+      });
+      el.bookSearch.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          runBookSearch();
+        }
+      });
+
+      // Probe proxy quietly so status note stays accurate
+      probeProxy().then((ok) => {
+        if (!ok) {
+          setSearchStatus(
+            "Sans proxy : lancez python3 server.py pour Gallica et les téléchargements EPUB.",
+            null
+          );
+        }
+      });
+
+      el.stage.addEventListener("click", () => toggle());
+
+      document.addEventListener("keydown", (e) => {
+        const tag = (e.target && e.target.tagName) || "";
+        if (tag === "TEXTAREA" || tag === "INPUT") {
+          if (e.code === "Escape") {
+            e.target.blur();
+            el.stage.focus({ preventScroll: true });
+          }
+          return;
+        }
+        if (e.code === "Space") {
+          e.preventDefault();
+          toggle();
+        } else if (e.code === "ArrowLeft") {
+          e.preventDefault();
+          step(-1);
+        } else if (e.code === "ArrowRight") {
+          e.preventDefault();
+          step(1);
+        } else if (e.code === "Home") {
+          e.preventDefault();
+          reset();
+        } else if (e.key === "f" || e.key === "F") {
+          e.preventDefault();
+          toggleFocusLock();
+        }
+      });
+
+      let resizeTimer = null;
+      window.addEventListener("resize", () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+          if (state.words.length && state.index < state.words.length) {
+            renderWord(state.words[state.index]);
+          }
+        }, 80);
+      });
+
+      const prefer = Math.round(Math.min(56, Math.max(34, window.innerWidth * 0.055)));
+      el.fontSize.value = String(prefer);
+
+      el.text.value = SAMPLE;
+      syncWpmLabels();
+      syncFontSize();
+      updateBrand();
+      prepareFromTextarea();
+      setPlayingUI(false);
+    })();
+  </script>
+</body>
+</html>
